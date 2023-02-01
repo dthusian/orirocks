@@ -24,7 +24,7 @@ pub fn parse_project(files: Vec<(String, Box<dyn Read>)>) -> ORResult<Project> {
         .map_err(|v| ORError::YamlError(location.clone(), v))?;
       match value {
         Document::Import(import_doc) => {
-          project.imports.extend(import_doc)
+          project.imports.extend(import_doc.into_iter().map(|v| Located::new(location.clone(), v)));
         },
         Document::Function(function_doc) => {
           if project.functions.contains_key(&function_doc.name) {
@@ -80,9 +80,9 @@ pub fn build(project: &Project, buildcache: Option<BuildCache>, opts: BuildOptio
   info!("starting build");
   fn create_build_plan(project: &Project, buildcache: Option<BuildCache>, build_dir: Box<Path>) -> OrderedDependencyGraph {
     let can_use_cached = |artifact: &str| -> bool {
-      let dependencies_cache_ok = project.builds.get(artifact).unwrap().
+      let dependencies_cache_ok = project.builds.get(artifact).unwrap();
       let res = File::open(build_dir);
-
+      todo!()
     };
     let mut graph = OrderedDependencyGraph::default();
     for deployment in &project.deploys {

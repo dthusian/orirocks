@@ -20,7 +20,7 @@ pub enum ORError {
 
 pub type ORResult<T> = std::result::Result<T, ORError>;
 
-#[derive(Debug, Clone)]
+#[derive(Default, Clone, Debug, Eq, PartialEq)]
 pub struct YamlLocation {
   pub file: String,
   pub document_id: usize,
@@ -51,6 +51,7 @@ impl Display for YamlLocation {
   }
 }
 
+#[derive(Default, Clone, Debug, Eq, PartialEq)]
 pub struct Located<T> {
   location: YamlLocation,
   obj: T

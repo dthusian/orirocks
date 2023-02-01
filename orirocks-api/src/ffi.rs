@@ -4,14 +4,14 @@ use std::ffi::c_void;
 /// However, if not specified, `Array`s must not be null.
 #[repr(C)]
 pub struct Array<T> {
-  ptr: *mut T,
-  len: u64
+  pub ptr: *const T,
+  pub len: u64
 }
 
 #[repr(C)]
 pub struct Param {
-  key: Array<u8>,
-  value: Array<u8>
+  pub key: Array<u8>,
+  pub value: Array<u8>
 }
 
 /// Exported under `_orirocks_plugin_init`.
@@ -29,10 +29,10 @@ pub type PluginDestroyFn = unsafe extern "C" fn(*const PluginManifest);
 
 #[repr(C)]
 pub struct PluginManifest {
-  version: u32,
-  name: Array<u8>,
-  environments: Array<EnvironmentProvider>,
-  deployments: Array<DeploymentProvider>
+  pub version: u32,
+  pub name: Array<u8>,
+  pub environments: Array<EnvironmentProvider>,
+  pub deployments: Array<DeploymentProvider>
 }
 
 #[repr(C)]
@@ -42,14 +42,14 @@ pub struct HostAPIFunctions {
   /// The returned array is valid until passed to `free_memory`.
   /// ### Thread Safety
   /// This function may be called concurrently.
-  resolve_location: unsafe extern "C" fn(Array<u8>) -> Array<u8>,
+  pub resolve_location: unsafe extern "C" fn(Array<u8>) -> Array<u8>,
 
   /// Frees memory allocated by any function in this list.
   /// The array must have been acquired from a previous call to another
   /// function in the `HostAPIFunctions` struct.
   /// ### Thread Safety
   /// This function may be called concurrently.
-  free_memory: unsafe extern "C" fn(Array<u8>)
+  pub free_memory: unsafe extern "C" fn(Array<u8>)
 }
 
 #[repr(C)]
@@ -57,7 +57,7 @@ pub struct EnvironmentProvider {
   /// UTF-8 string describing the name of the environment.
   /// ### Lifetime Guarantees
   /// Must live as long as owning PluginManifest object.
-  name: Array<u8>,
+  pub name: Array<u8>,
 
   /// Creates a new environment, outputting an opaque pointer to it.
   /// Returns an error message if the call failed or a null array otherwise.
@@ -66,7 +66,7 @@ pub struct EnvironmentProvider {
   /// The returned error message, if present, must be valid for 'static.
   /// ### Thread Safety
   /// This function needs to be callable on multiple threads non-concurrently.
-  create: unsafe extern "C" fn(Array<Param>, *mut *mut c_void /* env */) -> Array<u8>,
+  pub create: unsafe extern "C" fn(Array<Param>, *mut *mut c_void /* env */) -> Array<u8>,
 
   /// Performs an action on the environment.
   /// Returns an error message if the call failed or a null array otherwise.
@@ -74,14 +74,14 @@ pub struct EnvironmentProvider {
   /// The returned error message, if present, must be valid for 'static.
   /// ### Thread Safety
   /// This function needs to be callable on multiple threads concurrently. Concurrent invocations will not have the same `env` parameter.
-  action: unsafe extern "C" fn(*mut c_void /* env */, Array<u8> /* name */, Array<Param>) -> Array<u8>,
+  pub action: unsafe extern "C" fn(*mut c_void /* env */, Array<u8> /* name */, Array<Param>) -> Array<u8>,
 
   /// Destroys an environment, requesting that the result image be saved to a certain path.
   /// After calling this function, the environment referred to by `env` is no longer valid.
   /// Returns an error message if the call failed or a null array otherwise.
   /// ### Thread Safety
   /// This function needs to be callable on multiple threads concurrently. Concurrent invocations will not have the same `env` parameter.
-  finish: unsafe extern "C" fn(*mut c_void /* env */, Array<u8> /* path */) -> Array<u8>
+  pub finish: unsafe extern "C" fn(*mut c_void /* env */, Array<u8> /* path */) -> Array<u8>
 }
 
 #[repr(C)]
@@ -89,10 +89,12 @@ pub struct DeploymentProvider {
   /// UTF-8 string describing the name of the environment.
   /// ### Lifetime Guarantees
   /// Must live as long as owning PluginManifest object.
-  name: Array<u8>,
+  pub name: Array<u8>,
 
   /// Performs a deployment.
+  /// ### Lifetime Guarantees
+  /// The returned error message, if present, must be valid for 'static.
   /// ### Thread Safety
   /// This function needs to be callable on multiple threads concurrently.
-  deploy: unsafe extern "C" fn(Array<u8> /* path */, Array<Param>) -> i32
+  pub deploy: unsafe extern "C" fn(Array<u8> /* path */, Array<Param>) -> Array<u8>
 }
