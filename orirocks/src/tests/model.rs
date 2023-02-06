@@ -4,7 +4,7 @@ use crate::model::{BuildDoc, Document, EnvironmentStep, FunctionDoc, Import, Inv
 #[test]
 fn parse_valid_import_1() {
   let yaml = "
-import:
+!import
 -
   require: example/plugin
   version: 0.7.27
@@ -29,7 +29,7 @@ import:
 #[test]
 fn parse_valid_function_1() {
   let yaml = "
-function:
+!function
   name: my_function
   parameter_spec:
     param1:
@@ -51,7 +51,7 @@ function:
       invoke_fn: install_docker
       version: 20.10.23
 ";
-  let parsed_obj = serde_yaml::from_str(yaml).unwrap();
+  let parsed_obj: Document = serde_yaml::from_str(yaml).unwrap();
   let expected_obj = Document::Function(FunctionDoc {
     name: "my_function".into(),
     parameter_spec: HashMap::from([
@@ -64,14 +64,14 @@ function:
       Step::EnvironmentStep(EnvironmentStep {
         action: "copy_file".into(),
         parameters: HashMap::from([
-          ("source".into(), "src:assets/script.js".into()),
-          ("dest".into(), "vm:/root/script.js".into())
+          ("source".into(), Value::String("src:assets/script.js".into())),
+          ("dest".into(), Value::String("vm:/root/script.js".into()))
         ])
       }),
       Step::InvokeFunctionStep(InvokeFunctionStep {
         invoke_fn: "install_docker".into(),
         parameters: HashMap::from([
-          ("version".into(), "20.10.23".into())
+          ("version".into(), Value::String("20.10.23".into()))
         ])
       })
     ]
@@ -82,19 +82,19 @@ function:
 #[test]
 fn parse_valid_build_1() {
   let yaml = "
-build:
+!build
   artifact_name: my_image
   from: alpine_317_virt
   steps:
   -
     action: copy_file
-    source: src:assets/image.png
+    source: src:assets/script.js
     dest: vm:/root/script.js
   -
     invoke_fn: install_docker
     version: 20.10.23
 ";
-  let parsed_obj = serde_yaml::from_str(yaml).unwrap();
+  let parsed_obj: Document = serde_yaml::from_str(yaml).unwrap();
   let expected_obj = Document::Build(BuildDoc {
     artifact_name: "my_image".into(),
     from: "alpine_317_virt".to_string(),
@@ -102,14 +102,14 @@ build:
       Step::EnvironmentStep(EnvironmentStep {
         action: "copy_file".into(),
         parameters: HashMap::from([
-          ("source".into(), "src:assets/script.js".into()),
-          ("dest".into(), "vm:/root/script.js".into())
+          ("source".into(), Value::String("src:assets/script.js".into())),
+          ("dest".into(), Value::String("vm:/root/script.js".into()))
         ])
       }),
       Step::InvokeFunctionStep(InvokeFunctionStep {
         invoke_fn: "install_docker".into(),
         parameters: HashMap::from([
-          ("version".into(), "20.10.23".into())
+          ("version".into(), Value::String("20.10.23".into()))
         ])
       })
     ]
