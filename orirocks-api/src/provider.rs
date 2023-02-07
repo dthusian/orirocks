@@ -28,7 +28,7 @@ pub unsafe fn destroy_handler(plugin: *const PluginManifest) {
   Vec::from_raw_parts(
     manifest.deployments.ptr as *mut ffi::DeploymentProvider,
     manifest.deployments.len as usize * size_of::<ffi::DeploymentProvider>(),
-    manifest.deployments.len as usize * size_of::<ffi::DeploymentProvider>();
+    manifest.deployments.len as usize * size_of::<ffi::DeploymentProvider>());
   alloc::dealloc(plugin as *mut u8, Layout::for_value(&*plugin));
 }
 
