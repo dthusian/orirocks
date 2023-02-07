@@ -1,6 +1,6 @@
 [workspace]
 members = [
   "orirocks",
-  "orirocks-api",
+  "orirocks-api-v2",
   "orirocks-qemu"
 ]

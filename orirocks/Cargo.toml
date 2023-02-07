@@ -12,4 +12,4 @@ thiserror = "1.0.38"
 clap = "4.1.4"
 log = "0.4.17"
 simplelog = "0.12.0"
-orirocks-api = { path = "../orirocks-api" }
+orirocks-api-v2 = { path = "../orirocks-api-v2" }

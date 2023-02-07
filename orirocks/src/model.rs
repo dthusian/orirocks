@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
-use crate::float::CmpFloat;
+use orirocks_api_v2::{CmpFloat, Value, ValueType};
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum Document {
@@ -75,32 +75,4 @@ pub struct Parameter {
   #[serde(rename = "type")]
   pub type_: ValueType,
   pub default: Option<Value>
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
-#[serde(untagged)]
-pub enum Value {
-  Bool(bool),
-  Integer(i64),
-  Float(CmpFloat),
-  String(String)
-}
-
-impl Default for Value {
-  fn default() -> Self {
-    Value::String("".into())
-  }
-}
-
-#[derive(Serialize, Deserialize, Default, Clone, Debug, Eq, PartialEq)]
-pub enum ValueType {
-  #[serde(rename = "integer")]
-  Integer,
-  #[serde(rename = "float")]
-  Float,
-  #[serde(rename = "string")]
-  #[default]
-  String,
-  #[serde(rename = "bool")]
-  Bool
 }
