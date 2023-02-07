@@ -65,7 +65,7 @@ pub struct EnvironmentProvider {
   /// The pointer to the environment remains valid until it is passed to `EnvironmentProvider::finish`.
   /// The returned error message, if present, must be valid for 'static.
   /// ### Thread Safety
-  /// This function needs to be callable on multiple threads non-concurrently.
+  /// This function needs to be callable on multiple threads concurrently.
   pub create: unsafe extern "C" fn(Array<Param>, *mut *mut c_void /* env */) -> Array<u8>,
 
   /// Performs an action on the environment.
