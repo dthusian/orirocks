@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
-use orirocks_api_v2::{CmpFloat, Value, ValueType};
+use orirocks_api_v3::{CmpFloat, Value, ValueType};
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum Document {

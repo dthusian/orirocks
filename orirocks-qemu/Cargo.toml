@@ -1,10 +1,9 @@
 [package]
-name = "orirocks-api-v2"
+name = "orirocks-qemu"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde = { version = "1.0.152", features = ["derive"] }
-bson = "2.5.0"
+orirocks-api-v3 = { path = "../orirocks-api-v3" }
