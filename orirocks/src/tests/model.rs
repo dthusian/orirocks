@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use crate::model::{BuildDoc, Document, EnvironmentStep, FunctionDoc, Import, InvokeFunctionStep, Parameter, Step, Value, ValueType};
+use orirocks_api_v3::{Value, ValueType};
+use crate::model::{BuildDoc, Document, EnvironmentStep, FunctionDoc, Import, InvokeFunctionStep, Parameter, Step};
 
 #[test]
 fn parse_valid_import_1() {
@@ -42,6 +43,16 @@ fn parse_valid_function_1() {
       default: foo
     param4:
       type: float
+    param5:
+      type:
+        !array
+          inner: string
+    param6:
+      type:
+        !array
+          inner:
+            !array
+              inner: integer
   steps:
     -
       action: copy_file
@@ -55,10 +66,12 @@ fn parse_valid_function_1() {
   let expected_obj = Document::Function(FunctionDoc {
     name: "my_function".into(),
     parameter_spec: HashMap::from([
-        ("param1".into(), Parameter { type_: ValueType::Integer, default: None }),
-        ("param2".into(), Parameter { type_: ValueType::Bool, default: Some(Value::Bool(true)) }),
-        ("param3".into(), Parameter { type_: ValueType::String, default: Some(Value::String("foo".into())) }),
-        ("param4".into(), Parameter { type_: ValueType::Float, default: None })
+      ("param1".into(), Parameter { type_: ValueType::Integer, default: None }),
+      ("param2".into(), Parameter { type_: ValueType::Bool, default: Some(Value::Bool(true)) }),
+      ("param3".into(), Parameter { type_: ValueType::String, default: Some(Value::String("foo".into())) }),
+      ("param4".into(), Parameter { type_: ValueType::Float, default: None }),
+      ("param5".into(), Parameter { type_: ValueType::Array { inner: Box::new(ValueType::String) }, default: None }),
+      ("param6".into(), Parameter { type_: ValueType::Array { inner: Box::new(ValueType::Array { inner: Box::new(ValueType::Integer) })}, default: None })
     ]),
     steps: vec![
       Step::EnvironmentStep(EnvironmentStep {

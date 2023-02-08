@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use crate::float::CmpFloat;
+use orirocks_api_v3::CmpFloat;
 
 #[test]
 fn compare_nan_1() {

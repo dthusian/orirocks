@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use orirocks_api_v3::{DeploymentProvider, EnvironmentProvider};
+use orirocks_api_v3::{DeploymentProvider, Environment, EnvironmentProvider};
 use orirocks_qemu::QemuEnvironmentProvider;
 
 fn collect_plugins() -> (Vec<Box<dyn EnvironmentProvider>>, Vec<Box<dyn DeploymentProvider>>) {
@@ -24,5 +24,13 @@ impl PluginHive {
       env: collected_envs.into_iter().map(|v| (v.name().to_string(), v)).collect(),
       dep: collected_deps.into_iter().map(|v| (v.name().to_string(), v)).collect(),
     }
+  }
+
+  pub fn environments(&self) -> &HashMap<String, Box<dyn EnvironmentProvider>> {
+    &self.env
+  }
+
+  pub fn deployments(&self) -> &HashMap<String, Box<dyn DeploymentProvider>> {
+    &self.dep
   }
 }

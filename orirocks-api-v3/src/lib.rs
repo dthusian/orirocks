@@ -28,9 +28,9 @@ pub enum ValueType {
   #[serde(rename = "bool")]
   Bool,
   #[serde(rename = "array")]
-  Array(Box<ValueType>),
+  Array { inner: Box<ValueType> },
   #[serde(rename = "dict")]
-  Dict(Box<ValueType>)
+  Dict { inner: Box<ValueType> }
 }
 
 /// Represents an object that can construct Environments
