@@ -2,10 +2,10 @@ mod float;
 
 pub use crate::float::CmpFloat;
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash)]
 #[serde(untagged)]
 pub enum Value {
   Bool(bool),
@@ -13,10 +13,10 @@ pub enum Value {
   Float(CmpFloat),
   Array(Vec<Value>),
   String(String),
-  Dict(HashMap<String, Value>)
+  Dict(BTreeMap<String, Value>)
 }
 
-#[derive(Serialize, Deserialize, Default, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Default, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum ValueType {
   #[serde(rename = "integer")]
   Integer,

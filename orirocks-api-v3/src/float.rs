@@ -1,9 +1,11 @@
 use std::cmp::Ordering;
+use std::hash::{Hash, Hasher};
 use serde::{Deserialize, Serialize};
 
 /// A comparable float value
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 #[serde(transparent)]
+#[repr(transparent)]
 pub struct CmpFloat {
   pub inner: f64
 }
@@ -55,5 +57,11 @@ impl PartialOrd for CmpFloat {
 impl Ord for CmpFloat {
   fn cmp(&self, other: &Self) -> Ordering {
     self.partial_cmp(other).unwrap()
+  }
+}
+
+impl Hash for CmpFloat {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    state.write_u64(self.inner.to_bits())
   }
 }

@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter, Write};
+use std::hash::Hasher;
 use std::io;
 use std::ops::{Deref, DerefMut};
 use thiserror::Error;
@@ -93,5 +94,25 @@ pub fn validate_identifier(s: &str, traceback: &YamlLocation) -> ORResult<()> {
     Err(ORError::InvalidCharacter(traceback.clone()))
   } else {
     Ok(())
+  }
+}
+
+struct SHA256Hasher {
+  ctx: ring::digest::Context
+}
+
+impl SHA256Hasher {
+  pub fn new() -> Self {
+    SHA256Hasher { ctx: ring::digest::Context::new(&ring::digest::SHA256) }
+  }
+}
+
+impl Hasher for SHA256Hasher {
+  fn finish(&self) -> u64 {
+    u64::from_le_bytes((&self.ctx.clone().finish().as_ref()[0..8]).try_into().unwrap())
+  }
+
+  fn write(&mut self, bytes: &[u8]) {
+    self.ctx.update(bytes);
   }
 }

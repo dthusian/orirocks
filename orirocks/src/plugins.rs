@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use orirocks_api_v3::{DeploymentProvider, Environment, EnvironmentProvider};
+use orirocks_api_v3::{DeploymentProvider, EnvironmentProvider};
 use orirocks_qemu::QemuEnvironmentProvider;
 
 fn collect_plugins() -> (Vec<Box<dyn EnvironmentProvider>>, Vec<Box<dyn DeploymentProvider>>) {
