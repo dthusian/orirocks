@@ -1,5 +1,5 @@
 use std::fmt::{Display, Formatter, Write};
-use std::hash::Hasher;
+use std::hash::{Hash, Hasher};
 use std::io;
 use std::ops::{Deref, DerefMut};
 use thiserror::Error;
@@ -16,7 +16,16 @@ pub enum ORError {
   DuplicateSymbol(YamlLocation, String, String),
 
   #[error("in `{0}`: invalid character in identifier")]
-  InvalidCharacter(YamlLocation)
+  InvalidCharacter(YamlLocation),
+
+  #[error("in `{0}`: invalid environment name")]
+  InvalidEnvironmentName(YamlLocation),
+
+  #[error("in `{0}`: invalid (unknown reason)")]
+  GenericInvalid(YamlLocation),
+
+  #[error("in: `{0}`: import `{1}` not found")]
+  ImportNotFound(YamlLocation, String)
 }
 
 pub type ORResult<T> = std::result::Result<T, ORError>;
@@ -97,7 +106,7 @@ pub fn validate_identifier(s: &str, traceback: &YamlLocation) -> ORResult<()> {
   }
 }
 
-struct SHA256Hasher {
+pub struct SHA256Hasher {
   ctx: ring::digest::Context
 }
 
@@ -115,4 +124,10 @@ impl Hasher for SHA256Hasher {
   fn write(&mut self, bytes: &[u8]) {
     self.ctx.update(bytes);
   }
+}
+
+pub fn sha256_trunc(v: &impl Hash) -> u64 {
+  let mut hasher = SHA256Hasher::new();
+  v.hash(&mut hasher);
+  hasher.finish()
 }

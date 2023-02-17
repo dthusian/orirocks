@@ -32,6 +32,7 @@ pub struct BuildDoc {
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct DeployDoc {
+  pub name: String,
   pub deploy_to: String,
   pub artifact: String,
   #[serde(flatten)]
