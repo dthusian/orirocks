@@ -26,7 +26,8 @@ pub struct FunctionDoc {
 #[derive(Serialize, Deserialize, Default, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct BuildDoc {
   pub name: String,
-  pub from: String,
+  pub from: Option<String>,
+  pub depends: Option<Vec<String>>,
   pub envs: Vec<Environment>
 }
 

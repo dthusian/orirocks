@@ -106,7 +106,7 @@ pub struct BuildCache {
 }
 
 #[derive(Default, Clone, Debug)]
-struct OrderedDependencyGraph {
+pub struct OrderedDependencyGraph {
   order: Vec<String>,
   dependencies: HashMap<String, Vec<String>>
 }
@@ -181,8 +181,8 @@ pub fn update_cache(project: &Project, build_cache: &mut BuildCache) -> ORResult
   Ok((dirty_artifacts, dirty_deploys))
 }
 
-fn create_build_plan(project: &Project, buildcache: Option<BuildCache>, build_dir: Box<Path>) -> OrderedDependencyGraph {
-
+fn create_build_plan(project: &Project, buildcache: &mut BuildCache, build_dir: Box<Path>) -> OrderedDependencyGraph {
+  let mut dirty_objects =
   let mut graph = OrderedDependencyGraph::default();
 
   graph

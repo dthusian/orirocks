@@ -9,7 +9,7 @@ impl EnvironmentProvider for QemuEnvironmentProvider {
     "qemu"
   }
 
-  fn create(&self, dependencies: HashMap<String, String>, options: HashMap<String, Value>) -> Result<Box<dyn Environment>, String> {
+  fn create(&self, base: String, dependencies: HashMap<String, String>, options: HashMap<String, Value>) -> Result<Box<dyn Environment>, String> {
     todo!()
   }
 }

@@ -38,10 +38,11 @@ pub trait EnvironmentProvider {
   /// Retrieves the name of the environment provider
   fn name(&self) -> &str;
   /// Constructs an environment from this provider.
+  /// `base` is a base image that is recieved from the previous environment provider
   /// `dependencies` is a mapping from resource locations to real filepaths.
   /// This ensures that if a plugin step depends on anything, it is declared here to aid dependency resolution.
   /// `options` is a plugin-defined set of options.
-  fn create(&self, dependencies: HashMap<String, String>, options: HashMap<String, Value>) -> Result<Box<dyn Environment>, String>;
+  fn create(&self, base: String, dependencies: HashMap<String, String>, options: HashMap<String, Value>) -> Result<Box<dyn Environment>, String>;
 }
 
 /// Represents an Environment provided by an EnvironmentProvider
