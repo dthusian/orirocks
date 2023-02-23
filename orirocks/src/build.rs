@@ -1,7 +1,8 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io::Read;
+use std::iter;
 use std::path::Path;
 use log::info;
 use serde::{Deserialize, Serialize};
@@ -107,85 +108,121 @@ pub struct BuildCache {
 
 #[derive(Default, Clone, Debug)]
 pub struct OrderedDependencyGraph {
-  order: Vec<String>,
-  dependencies: HashMap<String, Vec<String>>
+  deploys: Vec<String>,
+  artifacts: Vec<(String, Vec<String>)>
 }
 
-// 1. Check hashes of all documents
-// 2. Remove artifacts from the clean set if they require rebuilding
-// 3. Construct build plan with details on which artifacts to rebuild in which order and which can be parallelized
-// 4. Execute the build plan
-
-/// Reads and updates the build cache and returns a list of dirty artifacts and dirty deploy blocks
-pub fn update_cache(project: &Project, build_cache: &mut BuildCache) -> ORResult<(Vec<String>, Vec<String>)> {
-  let mut import_clean = HashMap::new();
-  let mut fn_clean = HashMap::new();
-  let mut build_clean = HashMap::new();
-  let mut deploy_clean = HashMap::new();
-  fn is_clean(clean: &mut HashMap<String, bool>, cache: &mut HashMap<String, u64>, s: &str, obj: &impl Hash) -> bool {
-    if clean.contains_key(s) {
-      *clean.get(s).unwrap()
+/// Reads and updates the build cache and returns an ordered dependency graph
+pub fn update_cache(project: &Project, build_cache: &mut BuildCache) -> ORResult<OrderedDependencyGraph> {
+  #[derive(Default)]
+  struct IsCleanCache {
+    import_clean: HashMap<String, bool>,
+    fn_clean: HashMap<String, bool>,
+    build_clean: HashMap<String, bool>,
+    deploy_clean: HashMap<String, bool>
+  }
+  let mut is_clean_cache = IsCleanCache::default();
+  fn is_hash_clean(is_clean_cache: &mut HashMap<String, bool>, hash_cache: &mut HashMap<String, u64>, s: &str, obj: &impl Hash) -> bool {
+    if is_clean_cache.contains_key(s) {
+      *is_clean_cache.get(s).unwrap()
     } else {
       let hash = sha256_trunc(&obj);
-      let is_clean = cache.get(s)
+      let is_clean = hash_cache.get(s)
         .map(|v| *v == hash)
         .unwrap_or(false);
-      cache.insert(s.into(), hash);
-      clean.insert(s.into(), is_clean);
+      hash_cache.insert(s.into(), hash);
+      is_clean_cache.insert(s.into(), is_clean);
       is_clean
     }
   }
-  let mut dirty_artifacts = vec![];
-  let mut dirty_deploys = vec![];
-  for (name, artifact) in &project.builds {
+
+  // does not check dependencies but checks function and import blocks used
+  fn check_artifact_itself_clean(name: &str, project: &Project, build_cache: &mut BuildCache, icc: &mut IsCleanCache) -> bool {
+    let artifact = &project.builds[name];
     let artifact_is_clean =
-      is_clean(
-        &mut build_clean,
+      is_hash_clean(
+        &mut icc.build_clean,
         &mut build_cache.build_hashes,
         name,
         &**artifact
       ) &&
-      artifact.envs.iter().all(|v| {
-        let import_name = v.name.split_once("/").unwrap().0;
-        is_clean(
-          &mut import_clean,
-          &mut build_cache.import_hashes,
-          &v.name,
-          &**project.imports.iter().find(|v| v.require == import_name).unwrap()
-        ) && v.steps.iter().all(|v| match v {
-          Step::EnvironmentStep(v) => true,
-          Step::InvokeFunctionStep(v) => is_clean(
-            &mut fn_clean,
-            &mut build_cache.fn_hashes,
-            &v.invoke_fn,
-            &**project.functions.get(&v.invoke_fn).unwrap()
-          ),
-          Step::Null => panic!("Project contains null step")
-        })
-      });
-    if !artifact_is_clean {
-      dirty_artifacts.push(name.clone());
+        artifact.envs.iter().all(|v| {
+          let import_name = v.name.split_once("/").unwrap().0;
+          is_hash_clean(
+            &mut icc.import_clean,
+            &mut build_cache.import_hashes,
+            &v.name,
+            &**project.imports.iter().find(|v| v.require == import_name).unwrap()
+          ) && v.steps.iter().all(|v| match v {
+            Step::EnvironmentStep(v) => true,
+            Step::InvokeFunctionStep(v) => is_hash_clean(
+              &mut icc.fn_clean,
+              &mut build_cache.fn_hashes,
+              &v.invoke_fn,
+              &**project.functions.get(&v.invoke_fn).unwrap()
+            ),
+            Step::Null => panic!("Project contains null step")
+          })
+        });
+    artifact_is_clean
+  };
+
+  fn check_deploy_itself_clean(name: &str, project: &Project, build_cache: &mut BuildCache, icc: &mut IsCleanCache) -> bool {
+    let deploy = &project.deploys[name];
+    let import_name = deploy.deploy_to.split_once("/").unwrap().0;
+    is_hash_clean(&mut icc.deploy_clean, &mut build_cache.deploy_hashes, name,  &**deploy) &&
+      is_hash_clean(
+        &mut icc.import_clean,
+        &mut build_cache.import_hashes,
+        import_name,
+        &**project.imports.iter().find(|v| v.require == import_name).unwrap()
+      )
+  };
+
+  fn is_clean_recurse<'a>(arti: &'a String, project: &'a Project, clean_artifacts: &mut HashSet<&'a String>, dirty_artifacts: &mut HashMap<&'a String, Vec<&'a String>>, check_artifact_itself_clean: &mut dyn FnMut(&str) -> bool) -> bool {
+    if dirty_artifacts.contains_key(arti) {
+      false
+    } else if clean_artifacts.contains(arti) {
+      true
+    } else {
+      let build_doc = &project.builds[arti];
+      let mut dirty_deps = vec![];
+      let mut is_clean = check_artifact_itself_clean(arti);
+      for dep in build_doc.depends
+        .iter()
+        .flatten()
+        .chain(iter::once(&build_doc.from)
+          .into_iter()
+          .filter(|v| v.is_some())
+          .map(|v| v.as_ref().unwrap()))
+      {
+        if !is_clean_recurse(dep, project, clean_artifacts, dirty_artifacts, check_artifact_itself_clean) {
+          is_clean = false;
+          dirty_deps.push(dep);
+        }
+      }
+      if is_clean {
+        clean_artifacts.insert(arti);
+      } else {
+        dirty_artifacts.insert(arti, dirty_deps);
+      }
+      is_clean
     }
-  }
+  };
+  // bfs
+  let mut clean_artifacts = HashSet::new();
+  let mut dirty_artifacts = HashMap::new();
+  let mut dirty_deploys = Vec::new();
   for (name, deploy) in &project.deploys {
-    let deploy_is_clean = is_clean(
-      &mut deploy_clean,
-      &mut build_cache.deploy_hashes,
-      name,
-      &**deploy
-    );
+    let deploy_is_clean = is_clean_recurse(
+      &deploy.artifact, project, &mut clean_artifacts, &mut dirty_artifacts,
+      &mut |name: &str| check_artifact_itself_clean(name, project, build_cache, &mut is_clean_cache))
+      && check_deploy_itself_clean(name, project, build_cache, &mut is_clean_cache);
     if !deploy_is_clean {
-      dirty_deploys.push(name.clone());
+      dirty_deploys.push(name);
     }
-  }
-  Ok((dirty_artifacts, dirty_deploys))
-}
-
-fn create_build_plan(project: &Project, buildcache: &mut BuildCache, build_dir: Box<Path>) -> OrderedDependencyGraph {
-  let mut dirty_objects =
-  let mut graph = OrderedDependencyGraph::default();
-
-  graph
+  };
+  todo!()
 }
 
 /// Primary build function

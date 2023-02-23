@@ -113,7 +113,8 @@ fn parse_valid_build_1() {
   let parsed_obj: Document = serde_yaml::from_str(yaml).unwrap();
   let expected_obj = Document::Build(BuildDoc {
     name: "my_image".into(),
-    from: "alpine_317_virt".to_string(),
+    from: Some("alpine_317_virt".to_string()),
+    depends: None,
     envs: vec![
       Environment {
         name: "qemu".into(),

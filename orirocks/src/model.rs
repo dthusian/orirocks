@@ -86,3 +86,7 @@ pub struct Parameter {
   pub type_: ValueType,
   pub default: Option<Value>
 }
+
+/// Represents an reference to an object imported from a plugin
+/// It is always in the form of [a-zA-Z0-9_-]/[a-zA-Z0-9_-]
+pub type ImportRef = String;
