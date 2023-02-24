@@ -6,15 +6,14 @@ use std::iter;
 use std::path::Path;
 use log::info;
 use serde::{Deserialize, Serialize};
-use crate::model::{BuildDoc, DeployDoc, Document, FunctionDoc, Import, Step};
+use crate::model::{BuildDoc, Document, FunctionDoc, Import, Step};
 use crate::util::{ORError, ORResult, YamlLocation, validate_identifier, Located, SHA256Hasher, sha256_trunc};
 
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
 pub struct Project {
   imports: Vec<Located<Import>>,
   functions: HashMap<String, Located<FunctionDoc>>,
-  builds: HashMap<String, Located<BuildDoc>>,
-  deploys: HashMap<String, Located<DeployDoc>>
+  builds: HashMap<String, Located<BuildDoc>>
 }
 
 pub fn parse_project(files: Vec<(String, Box<dyn Read>)>) -> ORResult<Project> {
@@ -39,9 +38,6 @@ pub fn parse_project(files: Vec<(String, Box<dyn Read>)>) -> ORResult<Project> {
             return Err(ORError::DuplicateSymbol(location.clone(), "artifact".into(), build_doc.name));
           }
           project.builds.insert(build_doc.name.clone(), Located::new(location.clone(), build_doc));
-        }
-        Document::Deploy(deploy_doc) => {
-          project.deploys.insert(deploy_doc.name.clone(), Located::new(location.clone(), deploy_doc));
         }
       }
     }
@@ -102,8 +98,7 @@ pub struct BuildOptions {
 pub struct BuildCache {
   import_hashes: HashMap<String, u64>,
   fn_hashes: HashMap<String, u64>,
-  build_hashes: HashMap<String, u64>,
-  deploy_hashes: HashMap<String, u64>
+  build_hashes: HashMap<String, u64>
 }
 
 #[derive(Default, Clone, Debug)]
@@ -118,8 +113,7 @@ pub fn update_cache(project: &Project, build_cache: &mut BuildCache) -> ORResult
   struct IsCleanCache {
     import_clean: HashMap<String, bool>,
     fn_clean: HashMap<String, bool>,
-    build_clean: HashMap<String, bool>,
-    deploy_clean: HashMap<String, bool>
+    build_clean: HashMap<String, bool>
   }
   let mut is_clean_cache = IsCleanCache::default();
   fn is_hash_clean(is_clean_cache: &mut HashMap<String, bool>, hash_cache: &mut HashMap<String, u64>, s: &str, obj: &impl Hash) -> bool {
@@ -165,63 +159,68 @@ pub fn update_cache(project: &Project, build_cache: &mut BuildCache) -> ORResult
           })
         });
     artifact_is_clean
-  };
+  }
 
-  fn check_deploy_itself_clean(name: &str, project: &Project, build_cache: &mut BuildCache, icc: &mut IsCleanCache) -> bool {
-    let deploy = &project.deploys[name];
-    let import_name = deploy.deploy_to.split_once("/").unwrap().0;
-    is_hash_clean(&mut icc.deploy_clean, &mut build_cache.deploy_hashes, name,  &**deploy) &&
-      is_hash_clean(
-        &mut icc.import_clean,
-        &mut build_cache.import_hashes,
-        import_name,
-        &**project.imports.iter().find(|v| v.require == import_name).unwrap()
-      )
-  };
-
-  fn is_clean_recurse<'a>(arti: &'a String, project: &'a Project, clean_artifacts: &mut HashSet<&'a String>, dirty_artifacts: &mut HashMap<&'a String, Vec<&'a String>>, check_artifact_itself_clean: &mut dyn FnMut(&str) -> bool) -> bool {
-    if dirty_artifacts.contains_key(arti) {
-      false
-    } else if clean_artifacts.contains(arti) {
-      true
-    } else {
-      let build_doc = &project.builds[arti];
-      let mut dirty_deps = vec![];
-      let mut is_clean = check_artifact_itself_clean(arti);
-      for dep in build_doc.depends
-        .iter()
-        .flatten()
-        .chain(iter::once(&build_doc.from)
-          .into_iter()
-          .filter(|v| v.is_some())
-          .map(|v| v.as_ref().unwrap()))
-      {
-        if !is_clean_recurse(dep, project, clean_artifacts, dirty_artifacts, check_artifact_itself_clean) {
+  fn is_clean_dfs<'a>(arti: &'a String, project: &'a Project, clean_artifacts: &mut HashSet<&'a String>, dirty_artifacts: &mut HashSet<&'a String>, check_artifact_itself_clean: &mut dyn FnMut(&str) -> bool) -> ORResult<bool> {
+    if check_artifact_itself_clean(arti) {
+      return Ok(false);
+    }
+    let mut stack = Vec::new();
+    stack.push(arti);
+    let mut visited = HashSet::new();
+    visited.insert(arti);
+    let mut is_clean = true;
+    while !stack.is_empty() {
+      let arti = stack.pop().unwrap();
+      if dirty_artifacts.contains(arti) {
+        is_clean = false;
+        break;
+      } else if clean_artifacts.contains(arti) {
+        continue;
+      } else {
+        let is_itself_clean = check_artifact_itself_clean(arti);
+        if !is_itself_clean {
           is_clean = false;
-          dirty_deps.push(dep);
+          break;
+        }
+        let build_doc = &project.builds[arti];
+        for dep in build_doc.depends
+          .iter()
+          .flatten()
+          .chain(build_doc.from.iter())
+        {
+          stack.push(dep);
+          visited.insert(dep);
         }
       }
-      if is_clean {
-        clean_artifacts.insert(arti);
-      } else {
-        dirty_artifacts.insert(arti, dirty_deps);
-      }
-      is_clean
     }
+    if is_clean {
+      clean_artifacts.insert(arti);
+    } else {
+      dirty_artifacts.insert(arti);
+    }
+    Ok(is_clean)
   };
-  // bfs
+  // dfs
   let mut clean_artifacts = HashSet::new();
-  let mut dirty_artifacts = HashMap::new();
-  let mut dirty_deploys = Vec::new();
-  for (name, deploy) in &project.deploys {
-    let deploy_is_clean = is_clean_recurse(
-      &deploy.artifact, project, &mut clean_artifacts, &mut dirty_artifacts,
-      &mut |name: &str| check_artifact_itself_clean(name, project, build_cache, &mut is_clean_cache))
-      && check_deploy_itself_clean(name, project, build_cache, &mut is_clean_cache);
-    if !deploy_is_clean {
-      dirty_deploys.push(name);
-    }
+  let mut dirty_artifacts = HashSet::new();
+  for (name, arti) in &project.builds {
+    is_clean_dfs(
+      &name, project, &mut clean_artifacts, &mut dirty_artifacts,
+      &mut |name: &str| check_artifact_itself_clean(name, project, build_cache, &mut is_clean_cache))?;
   };
+  // add dependencies
+  let mut dirty_artifacts_with_deps = HashMap::new();
+  for name in dirty_artifacts {
+    let build = &project.builds[name];
+    dirty_artifacts_with_deps.insert(
+      name,
+      build.depends.iter()
+        .flatten()
+        .chain(build.from.iter())
+        .filter(|v| clean_artifacts.contains(v))
+        .collect::<Vec<_>>());
+  }
   todo!()
 }
 

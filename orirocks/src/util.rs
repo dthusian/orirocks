@@ -25,7 +25,10 @@ pub enum ORError {
   GenericInvalid(YamlLocation),
 
   #[error("in: `{0}`: import `{1}` not found")]
-  ImportNotFound(YamlLocation, String)
+  ImportNotFound(YamlLocation, String),
+
+  #[error("circular dependency found: {0}")]
+  CircularDependency(String)
 }
 
 pub type ORResult<T> = std::result::Result<T, ORError>;

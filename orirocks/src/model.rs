@@ -9,9 +9,7 @@ pub enum Document {
   #[serde(rename = "function")]
   Function(FunctionDoc),
   #[serde(rename = "build")]
-  Build(BuildDoc),
-  #[serde(rename = "deploy")]
-  Deploy(DeployDoc)
+  Build(BuildDoc)
 }
 
 pub type ImportDoc = Vec<Import>;
@@ -29,15 +27,6 @@ pub struct BuildDoc {
   pub from: Option<String>,
   pub depends: Option<Vec<String>>,
   pub envs: Vec<Environment>
-}
-
-#[derive(Serialize, Deserialize, Default, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct DeployDoc {
-  pub name: String,
-  pub deploy_to: String,
-  pub artifact: String,
-  #[serde(flatten)]
-  pub parameters: Parameters
 }
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug, Eq, PartialEq, Hash)]
